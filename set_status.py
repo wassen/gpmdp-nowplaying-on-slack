@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+from typing import Dict, Any, Callable
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -16,7 +17,7 @@ json_dir = os.path.join(os.environ["HOME"], json_dir_from_home)
 json_path = os.path.join(os.environ["HOME"], json_path_from_home)
 
 
-def token_env_val():
+def token_env_val() -> str:
     token = os.environ.get("SLACK_TOKEN")
     if token:
         return token
@@ -27,21 +28,21 @@ def token_env_val():
 
 class PlaybackHandler(FileSystemEventHandler):
 
-    def __init__(self):
+    def __init__(self) -> None :
         super().__init__()
-        self.prev_title = None
-        self.prev_artist = None
-        self.prev_album = None
+        self.prev_title: str = ""
+        self.prev_artist: str = ""
+        self.prev_album: str = ""
 
     @staticmethod
-    def playback_of_gpmdp():
+    def playback_of_gpmdp() -> Dict[str, Dict[str, str]]:
 
         # IOError
         with open(json_path, "r") as f:
             playback = json.load(f)
             return playback
 
-    def __post_status(self, title, artist):
+    def __post_status(self, title: str, artist: str) -> None:
         token = token_env_val()
 
         url = "https://slack.com/api/users.profile.set"
@@ -61,9 +62,9 @@ class PlaybackHandler(FileSystemEventHandler):
         self.prev_title = title
         self.prev_artist = artist
 
-    def __update_slack_status(self, playback):
-        title = playback["song"]["title"]
-        artist = playback["song"]["artist"]
+    def __update_slack_status(self, playback: Dict[str, Dict[str, str]]) -> None:
+        title: str = playback["song"]["title"]
+        artist: str = playback["song"]["artist"]
         if artist == self.prev_artist and title == self.prev_title:
             # self.prev_title = title
             # self.prev_artist = artist
@@ -71,12 +72,11 @@ class PlaybackHandler(FileSystemEventHandler):
 
         self.__post_status(title, artist)
 
-    def on_modified(self, event):
+    def on_modified(self, event: Any) -> None:
         self.__update_slack_status(self.playback_of_gpmdp())
 
 
-def main():
-
+def main() -> None:
     event_handler = PlaybackHandler()
     observer = Observer()
     observer.schedule(event_handler, json_dir, recursive=True)
@@ -98,7 +98,7 @@ def parricide(pid: int) -> None:
         sys.exit()
 
 
-def throw_away_io():
+def throw_away_io() -> None:
     stdin = open(os.devnull, 'rb')
     stdout = open(os.devnull, 'ab+')
     stderr = open(os.devnull, 'ab+', 0)
@@ -118,16 +118,15 @@ def write_log(message: str) -> None:
         f.write(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
 
 
-def daemonize(callback):
-    pid: int = os.fork()
-    parricide(pid)
+def daemonize(callback: Callable) -> None:
+    first_pid: int = os.fork()
+    parricide(first_pid)
     os.setsid()
-    pid: int = os.fork()
-    write_pid(pid)
-    parricide(pid)
+    second_pid: int = os.fork()
+    write_pid(second_pid)
+    parricide(second_pid)
     throw_away_io()
     callback()
-
 
 if __name__ == '__main__':
     daemonize(main)

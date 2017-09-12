@@ -82,7 +82,7 @@ def daemon_main():
 def fork():
         pid = os.fork()
         if pid > 0:
-                f = open(os.path.join(os.environ["HOME"], 'var/run/set_statusd.pid'), 'w')
+                f = open('/var/run/set_statusd.pid', 'w')
                 f.write(str(pid)+"\n")
                 f.close()
                 sys.exit()

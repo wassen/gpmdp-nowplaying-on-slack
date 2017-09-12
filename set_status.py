@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -13,6 +14,16 @@ json_dir_from_home = "Library/Application Support/Google Play Music Desktop Play
 json_path_from_home = "Library/Application Support/Google Play Music Desktop Player/json_store/playback.json"
 json_dir = os.path.join(os.environ["HOME"], json_dir_from_home)
 json_path = os.path.join(os.environ["HOME"], json_path_from_home)
+
+
+def token_env_val():
+    token = os.environ.get("SLACK_TOKEN")
+    if token:
+        return token
+    else:
+        print("set environment variable 'SLACK_TOKEN'")
+        os._exit(1)
+
 
 class PlaybackHandler(FileSystemEventHandler):
 
@@ -31,8 +42,7 @@ class PlaybackHandler(FileSystemEventHandler):
             return playback
 
     def __post_status(self, title, artist):
-        # error handling
-        token = os.environ["SLACK_TOKEN"]
+        token = token_env_val()
 
         url = "https://slack.com/api/users.profile.set"
         method = "POST"
@@ -45,7 +55,7 @@ class PlaybackHandler(FileSystemEventHandler):
         with urllib.request.urlopen(request) as response:
             response_body = response.read().decode("utf-8")
 
-        print(response_body)
+        write_log(response_body)
 
         # if response ok
         self.prev_title = title
@@ -64,32 +74,60 @@ class PlaybackHandler(FileSystemEventHandler):
     def on_modified(self, event):
         self.__update_slack_status(self.playback_of_gpmdp())
 
-# import pdb; pdb.set_trace()
-# 二段階の認証でつまった
 
-def daemon_main():
+def main():
+
     event_handler = PlaybackHandler()
     observer = Observer()
     observer.schedule(event_handler, json_dir, recursive=True)
     observer.start()
     try:
         while True:
-            time.sleep(15)
+            time.sleep(60)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
 
-def fork():
-        pid = os.fork()
-        if pid > 0:
-                f = open('/var/run/set_statusd.pid', 'w')
-                f.write(str(pid)+"\n")
-                f.close()
-                sys.exit()
 
-        if pid == 0:
-                daemon_main()
+def is_parent(pid: int) -> bool:
+    return bool(pid)
 
-if __name__=='__main__':
-        fork()
 
+def parricide(pid: int) -> None:
+    if is_parent(pid):
+        sys.exit()
+
+
+def throw_away_io():
+    stdin = open(os.devnull, 'rb')
+    stdout = open(os.devnull, 'ab+')
+    stderr = open(os.devnull, 'ab+', 0)
+
+    for (null_io, std_io) in zip((stdin, stdout, stderr), (sys.stdin, sys.stdout, sys.stderr)):
+        os.dup2(null_io.fileno(), std_io.fileno())
+
+
+def write_pid(pid: int) -> None:
+    if is_parent(pid):
+        with open('/var/run/set_statusd.pid', 'a') as f:
+            f.write(f"{pid}\n")
+
+
+def write_log(message: str) -> None:
+    with open(os.path.join(os.environ["HOME"], 'set_statusd.log'), 'a') as f:
+        f.write(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
+
+
+def daemonize(callback):
+    pid: int = os.fork()
+    parricide(pid)
+    os.setsid()
+    pid: int = os.fork()
+    write_pid(pid)
+    parricide(pid)
+    throw_away_io()
+    callback()
+
+
+if __name__ == '__main__':
+    daemonize(main)

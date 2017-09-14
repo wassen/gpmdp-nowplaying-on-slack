@@ -109,7 +109,7 @@ def throw_away_io() -> None:
 
 def write_pid(pid: int) -> None:
     if is_parent(pid):
-        with open('/var/run/set_statusd.pid', 'a') as f:
+        with open('/var/run/set_statusd.pid', 'w') as f:
             f.write(f"{pid}\n")
 
 

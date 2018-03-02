@@ -128,5 +128,8 @@ def daemonize(callback: Callable) -> None:
     throw_away_io()
     callback()
 
+
 if __name__ == '__main__':
-    daemonize(main)
+    # daemonize(main)
+    # leave daemonize to launchd
+    main()

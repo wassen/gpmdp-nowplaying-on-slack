@@ -19,5 +19,9 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/gpmdp.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/gpmdp.err</string>
   </dict>
 </plist>

@@ -50,7 +50,7 @@ class PlaybackHandler(FileSystemEventHandler):
         # headers = {"Content-Type" : "application/json"}
         # ボディにJSONいれても聞いてくれないので、クエリの形に
 
-        obj = {"token": token, "profile": {"status_text": f"Now Playing... Title: {title}, Artist: {artist}", "status_emoji": ":vivaldi:"}}
+        obj = {"token": token, "profile": {"status_text": f"Now Playing... Title: {title}, Artist: {artist}", "status_emoji": ":google_assistant:"}}
         data = urllib.parse.urlencode(obj).encode("utf-8")
         request = urllib.request.Request(url, data=data, method=method)
         with urllib.request.urlopen(request) as response:
@@ -73,7 +73,11 @@ class PlaybackHandler(FileSystemEventHandler):
         self.__post_status(title, artist)
 
     def on_modified(self, event: Any) -> None:
-        self.__update_slack_status(self.playback_of_gpmdp())
+        # decode出来ないかも知れないのはoptionalで表現したい
+        try:
+            self.__update_slack_status(self.playback_of_gpmdp())
+        except json.decoder.JSONDecodeError:
+            print("cannot decode json :(")
 
 
 def main() -> None:
